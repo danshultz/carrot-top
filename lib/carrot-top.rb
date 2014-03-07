@@ -5,7 +5,7 @@ require "uri"
 require "json"
 
 class CarrotTop
-  attr_reader :rabbitmq_api
+  attr_reader :rabbitmq_api, :user, :password
 
   def initialize(options={})
     [:host, :port, :user, :password].each do |option|
@@ -14,9 +14,10 @@ class CarrotTop
       end
     end
     protocol = options[:ssl] ? "https" : "http"
-    credentials = "#{options[:user]}:#{options[:password]}"
     location = "#{options[:host]}:#{options[:port]}"
-    @rabbitmq_api = "#{protocol}://#{credentials}@#{location}/api"
+    @rabbitmq_api = "#{protocol}://#{location}/api"
+    @user = options[:user]
+    @password = options[:password]
   end
 
   def query_api(options={})
@@ -45,15 +46,13 @@ class CarrotTop
     end
     request = Net::HTTP::Get.new(url.request_uri)
     request.add_field("content-type", "application/json")
-    request.basic_auth(url.user, url.password)
+    request.basic_auth(user, password)
     response = http.request(request)
     case response
     when Net::HTTPSuccess
       response
     when Net::HTTPRedirection
       redirect_url = URI.parse(response["location"])
-      redirect_url.user = url.user
-      redirect_url.password = url.password
       fetch_uri(redirect_url.to_s, limit - 1)
     else
       response.error!
